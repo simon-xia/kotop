@@ -9,21 +9,21 @@ import (
 )
 
 const (
-	rate_display_scale_max = 1.2
-	rate_display_scale_min = 0.8
+	rateDisplayScaleMax = 1.2
+	rateDisplayScaleMin = 0.8
 
-	sparkline_height  = 2
-	sparklines_height = 5
-	one_line_height   = 1
-	barchart_height   = 10
+	sparklineHeight  = 2
+	sparklinesHeight = 5
+	oneLineHeight    = 1
+	barchartHeight   = 10
 
-	barchart_width   = 10
-	sparklines_width = 2
-	gauge_width      = 3
-	one_column_width = 1
-	canvas_width     = 12
+	barchartWidth   = 10
+	sparklinesWidth = 2
+	gaugeWidth      = 3
+	oneColumnWidth  = 1
+	canvasWidth     = 12
 
-	default_ring_size = 100
+	defaultRingSize = 100
 )
 
 type FieldName string
@@ -60,8 +60,8 @@ func NewCanvas() *Canvas {
 		footer:           newFooter(),
 		produceSpeed:     newSparkLines(" " + string(FieldNameProduceSpeed) + " "),
 		consumeSpeed:     newSparkLines(" " + string(FieldNameConsumeSpeed) + " "),
-		totalConsume:     NewRing(default_ring_size),
-		totalProduce:     NewRing(default_ring_size),
+		totalConsume:     newRing(defaultRingSize),
+		totalProduce:     newRing(defaultRingSize),
 	}
 }
 
@@ -78,7 +78,7 @@ func (c *Canvas) PageDown() {
 }
 
 func (c *Canvas) pageSize() int {
-	return ui.TermHeight() - (barchart_height + one_line_height*2)
+	return ui.TermHeight() - (barchartHeight + oneLineHeight*2)
 }
 
 func (c *Canvas) refresh() {
@@ -101,7 +101,7 @@ func (c *Canvas) refresh() {
 func (c *Canvas) fillData(data []ResultEntry, pagesize int) {
 
 	w := ui.TermWidth()
-	c.leaderDistribute.BarWidth = (w / canvas_width * barchart_width / len(c.leaderDistribute.Data)) - 1
+	c.leaderDistribute.BarWidth = (w / canvasWidth * barchartWidth / len(c.leaderDistribute.Data)) - 1
 
 	c.pid = newParList(pagesize)
 	c.offset = newParList(pagesize)
@@ -127,12 +127,12 @@ func (c *Canvas) fillData(data []ResultEntry, pagesize int) {
 		totalProduce += r.ProduceRate
 		totalConsume += r.ConsumeRate
 	}
-	c.totalProduce.Add(int(totalProduce))
-	c.totalConsume.Add(int(totalConsume))
+	c.totalProduce.add(int(totalProduce))
+	c.totalConsume.add(int(totalConsume))
 
-	c.produceSpeed.Lines[0].Data = c.totalProduce.Dump(w / 6)
+	c.produceSpeed.Lines[0].Data = c.totalProduce.dump(w / 6)
 	c.produceSpeed.Lines[0].Title = rateStr(totalProduce)
-	c.consumeSpeed.Lines[0].Data = c.totalConsume.Dump(w / 6)
+	c.consumeSpeed.Lines[0].Data = c.totalConsume.dump(w / 6)
 	c.consumeSpeed.Lines[0].Title = rateStr(totalConsume)
 }
 
@@ -210,19 +210,19 @@ func (c *Canvas) Render() {
 	ui.Body.Rows = ui.Body.Rows[:0]
 	ui.Body.AddRows(
 		ui.NewRow(
-			ui.NewCol(barchart_width, 0, c.leaderDistribute),
-			ui.NewCol(sparklines_width, 0, c.produceSpeed, c.consumeSpeed),
+			ui.NewCol(barchartWidth, 0, c.leaderDistribute),
+			ui.NewCol(sparklinesWidth, 0, c.produceSpeed, c.consumeSpeed),
 		),
 		c.header,
 		ui.NewRow(
-			ui.NewCol(one_column_width, 0, par2GridBufferSlice(c.pid)...),
-			ui.NewCol(one_column_width, 0, par2GridBufferSlice(c.size)...),
-			ui.NewCol(one_column_width, 0, par2GridBufferSlice(c.offset)...),
-			ui.NewCol(gauge_width, 0, gauge2GridBufferSlice(c.produceRate)...),
-			ui.NewCol(gauge_width, 0, gauge2GridBufferSlice(c.consumeRate)...),
-			ui.NewCol(one_column_width, 0, par2GridBufferSlice(c.leader)...),
-			ui.NewCol(one_column_width, 0, par2GridBufferSlice(c.replicas)...),
-			ui.NewCol(one_column_width, 0, par2GridBufferSlice(c.isr)...),
+			ui.NewCol(oneColumnWidth, 0, par2GridBufferSlice(c.pid)...),
+			ui.NewCol(oneColumnWidth, 0, par2GridBufferSlice(c.size)...),
+			ui.NewCol(oneColumnWidth, 0, par2GridBufferSlice(c.offset)...),
+			ui.NewCol(gaugeWidth, 0, gauge2GridBufferSlice(c.produceRate)...),
+			ui.NewCol(gaugeWidth, 0, gauge2GridBufferSlice(c.consumeRate)...),
+			ui.NewCol(oneColumnWidth, 0, par2GridBufferSlice(c.leader)...),
+			ui.NewCol(oneColumnWidth, 0, par2GridBufferSlice(c.replicas)...),
+			ui.NewCol(oneColumnWidth, 0, par2GridBufferSlice(c.isr)...),
 		),
 		c.footer,
 	)
@@ -238,19 +238,19 @@ func newFooter() *ui.Row {
 	p.TextBgColor = ui.ColorCyan
 	p.Bg = ui.ColorCyan
 	p.Border = false
-	p.Height = one_line_height
+	p.Height = oneLineHeight
 
 	return ui.NewRow(
-		ui.NewCol(canvas_width, 0, p),
+		ui.NewCol(canvasWidth, 0, p),
 	)
 }
 
 func newSparkLines(label string) *ui.Sparklines {
 	sl := ui.NewSparkline()
 	sl.LineColor = ui.ColorGreen
-	sl.Height = sparkline_height
+	sl.Height = sparklineHeight
 	sls := ui.NewSparklines(sl)
-	sls.Height = sparklines_height
+	sls.Height = sparklinesHeight
 	sls.BorderFg = ui.ColorCyan
 	sls.BorderLabel = label
 	sls.BorderLeft = false
@@ -272,26 +272,26 @@ func newHeader() *ui.Row {
 		p.BorderRight = false
 		p.BorderTop = false
 		p.BorderBottom = false
-		p.Height = one_line_height
+		p.Height = oneLineHeight
 		header[i] = p
 	}
 
 	return ui.NewRow(
-		ui.NewCol(one_column_width, 0, header[0]),
-		ui.NewCol(one_column_width, 0, header[1]),
-		ui.NewCol(one_column_width, 0, header[2]),
-		ui.NewCol(gauge_width, 0, header[3]),
-		ui.NewCol(gauge_width, 0, header[4]),
-		ui.NewCol(one_column_width, 0, header[5]),
-		ui.NewCol(one_column_width, 0, header[6]),
-		ui.NewCol(one_column_width, 0, header[7]),
+		ui.NewCol(oneColumnWidth, 0, header[0]),
+		ui.NewCol(oneColumnWidth, 0, header[1]),
+		ui.NewCol(oneColumnWidth, 0, header[2]),
+		ui.NewCol(gaugeWidth, 0, header[3]),
+		ui.NewCol(gaugeWidth, 0, header[4]),
+		ui.NewCol(oneColumnWidth, 0, header[5]),
+		ui.NewCol(oneColumnWidth, 0, header[6]),
+		ui.NewCol(oneColumnWidth, 0, header[7]),
 	)
 }
 
 func newBarChart() *ui.BarChart {
 	bc := ui.NewBarChart()
 	bc.BorderLabel = " Leader Distributition "
-	bc.Height = barchart_height
+	bc.Height = barchartHeight
 	bc.BorderLeft = false
 	bc.BorderRight = false
 	bc.BorderBottom = false
@@ -312,7 +312,7 @@ func newParList(size int) []*ui.Par {
 		p.BorderRight = false
 		p.BorderTop = false
 		p.BorderBottom = false
-		p.Height = one_line_height
+		p.Height = oneLineHeight
 		pars[i] = p
 	}
 	return pars
@@ -325,7 +325,7 @@ func newGaugeList(size int) (gs []*ui.Gauge) {
 		g.Border = false
 		g.BorderTop = false
 		g.BorderBottom = false
-		g.Height = one_line_height
+		g.Height = oneLineHeight
 		g.LabelAlign = ui.AlignCenter
 		gs = append(gs, g)
 	}

@@ -11,7 +11,7 @@ import (
 	"github.com/wvanbergen/kazoo-go"
 )
 
-const Broker_list_spliter = ","
+const BrokerListSpliter = ","
 
 type KOTopConf struct {
 	Brokers string `json:"brokers"`
@@ -32,7 +32,7 @@ type KOTop struct {
 }
 
 func NewKOTop(conf *KOTopConf, topic, cg string) (k *KOTop, err error) {
-	c, err := sarama.NewClient(strings.Split(conf.Brokers, Broker_list_spliter), nil)
+	c, err := sarama.NewClient(strings.Split(conf.Brokers, BrokerListSpliter), nil)
 	if err != nil {
 		return
 	}
@@ -48,7 +48,7 @@ func NewKOTop(conf *KOTopConf, topic, cg string) (k *KOTop, err error) {
 		pm:    make(map[int32]PartitionMeta),
 		cg:    zk.Consumergroup(cg),
 	}
-	err = k.RefreshMeta(topic)
+	err = k.refreshMeta(topic)
 	return
 }
 
@@ -114,7 +114,7 @@ func diffPartionInfos(old, new map[int32]PartitionInfo, dur time.Duration) (res 
 		}
 	}
 
-	pmax, cmax, pmin, cmin = pmax*rate_display_scale_max, cmax*rate_display_scale_max, pmin*rate_display_scale_min, cmin*rate_display_scale_min
+	pmax, cmax, pmin, cmin = pmax*rateDisplayScaleMax, cmax*rateDisplayScaleMax, pmin*rateDisplayScaleMin, cmin*rateDisplayScaleMin
 	for i := range res {
 		res[i].ConsumePercent = int((res[i].ConsumeRate - cmin) * 100 / (cmax - cmin))
 		res[i].ProducePercent = int((res[i].ProduceRate - pmin) * 100 / (pmax - pmin))
@@ -143,13 +143,13 @@ func (k *KOTop) Check(topic string) (data CanvasData, err error) {
 		return
 	}
 
-	offsets, get, err := k.OffsetFromKafka(topic)
+	offsets, get, err := k.offsetFromKafka(topic)
 	if err != nil {
 		return
 	}
 
 	if !get {
-		offsets, err = k.OffsetFromZK(topic)
+		offsets, err = k.offsetFromZK(topic)
 		if err != nil {
 			return
 		}
@@ -217,7 +217,7 @@ func (k *KOTop) LogSize(topic string) (offsets map[int32]int64, err error) {
 	return
 }
 
-func (k *KOTop) OffsetFromZK(topic string) (offsets map[int32]int64, err error) {
+func (k *KOTop) offsetFromZK(topic string) (offsets map[int32]int64, err error) {
 	offs, err := k.cg.FetchAllOffsets()
 	if err != nil {
 		return
@@ -227,7 +227,7 @@ func (k *KOTop) OffsetFromZK(topic string) (offsets map[int32]int64, err error) 
 	return
 }
 
-func (k *KOTop) OffsetFromKafka(topic string) (offsets map[int32]int64, get bool, err error) {
+func (k *KOTop) offsetFromKafka(topic string) (offsets map[int32]int64, get bool, err error) {
 	offsets = make(map[int32]int64, len(k.ps))
 
 	resp, err := k.broker.FetchOffset(k.offsetReq)
@@ -247,7 +247,7 @@ func (k *KOTop) OffsetFromKafka(topic string) (offsets map[int32]int64, get bool
 	return
 }
 
-func (k *KOTop) RefreshMeta(topic string) (err error) {
+func (k *KOTop) refreshMeta(topic string) (err error) {
 	err = k.cli.RefreshMetadata()
 	if err != nil {
 		return
@@ -270,16 +270,16 @@ func (k *KOTop) RefreshMeta(topic string) (err error) {
 	}
 	k.ps = ps
 
-	err = k.RefreshPartitionMeta(topic)
+	err = k.refreshPartitionMeta(topic)
 	if err != nil {
 		return
 	}
 
-	err = k.UpdateOffsetReq(topic)
+	err = k.updateOffsetReq(topic)
 	return
 }
 
-func (k *KOTop) RefreshPartitionMeta(topic string) (err error) {
+func (k *KOTop) refreshPartitionMeta(topic string) (err error) {
 	for _, pid := range k.ps {
 		b, er := k.cli.Leader(topic, pid)
 		if er != nil {
@@ -308,7 +308,7 @@ func (k *KOTop) RefreshPartitionMeta(topic string) (err error) {
 	return
 }
 
-func (k *KOTop) UpdateOffsetReq(topic string) (err error) {
+func (k *KOTop) updateOffsetReq(topic string) (err error) {
 
 	req := &sarama.OffsetFetchRequest{
 		Version:       1,

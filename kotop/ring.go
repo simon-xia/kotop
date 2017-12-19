@@ -6,14 +6,14 @@ type Ring struct {
 	size int
 }
 
-func NewRing(size int) *Ring {
+func newRing(size int) *Ring {
 	return &Ring{
 		buf:  make([]int, size),
 		size: size,
 	}
 }
 
-func (r *Ring) Add(a int) {
+func (r *Ring) add(a int) {
 	r.buf[r.idx] = a
 	r.idx++
 	if r.idx >= r.size {
@@ -22,7 +22,7 @@ func (r *Ring) Add(a int) {
 }
 
 // dump most recent n added
-func (r *Ring) Dump(n int) []int {
+func (r *Ring) dump(n int) []int {
 	if n > r.size {
 		n = r.size
 	}

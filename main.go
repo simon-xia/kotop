@@ -13,18 +13,18 @@ import (
 )
 
 var (
-	conf_file      = flag.String("f", "~/.kotop.conf", "config file name")
-	consumer_group = flag.String("group", "", "consumer group name")
-	topic          = flag.String("topic", "", "topic name")
-	broker_hosts   = flag.String("broker", "", fmt.Sprintf("broker list, split by '%s' e.g: \"192.168.0.1:9092,192.168.0.2:9092,192.168.0.3:9092\"", kotop.Broker_list_spliter))
-	zk_hosts       = flag.String("zk", "", fmt.Sprintf("zookeeper hosts and root, e.g: \"192.168.0.1:2181,192.168.0.2:2181/kafka_root_dir\""))
-	data_refresh   = flag.Int("refresh", 2, "time to refresh data, default is 1s ")
+	confFile      = flag.String("f", "~/.kotop.conf", "config file name")
+	consumerGroup = flag.String("group", "", "consumer group name")
+	topic         = flag.String("topic", "", "topic name")
+	brokerHosts   = flag.String("broker", "", fmt.Sprintf("broker list, split by '%s' e.g: \"192.168.0.1:9092,192.168.0.2:9092,192.168.0.3:9092\"", kotop.BrokerListSpliter))
+	zkHosts       = flag.String("zk", "", fmt.Sprintf("zookeeper hosts and root, e.g: \"192.168.0.1:2181,192.168.0.2:2181/kafka_root_dir\""))
+	dataRefresh   = flag.Int("refresh", 2, "time to refresh data, default is 1s ")
 )
 
 func main() {
 	flag.Parse()
 
-	raw, err := ioutil.ReadFile(*conf_file)
+	raw, err := ioutil.ReadFile(*confFile)
 	if err != nil {
 		panic(err)
 	}
@@ -35,11 +35,11 @@ func main() {
 		panic(err)
 	}
 
-	if len(*broker_hosts) > 0 {
-		conf.Brokers = *broker_hosts
+	if len(*brokerHosts) > 0 {
+		conf.Brokers = *brokerHosts
 	}
-	if len(*zk_hosts) > 0 {
-		conf.ZKHosts = *zk_hosts
+	if len(*zkHosts) > 0 {
+		conf.ZKHosts = *zkHosts
 	}
 
 	err = ui.Init()
@@ -48,7 +48,7 @@ func main() {
 	}
 	defer ui.Close()
 
-	top, err := kotop.NewKOTop(&conf, *topic, *consumer_group)
+	top, err := kotop.NewKOTop(&conf, *topic, *consumerGroup)
 	if err != nil {
 		panic(err)
 	}
@@ -135,7 +135,7 @@ func main() {
 		mutex.Unlock()
 	})
 
-	ticker := time.Tick(time.Duration(*data_refresh) * time.Second)
+	ticker := time.Tick(time.Duration(*dataRefresh) * time.Second)
 	go func() {
 		for {
 			select {
