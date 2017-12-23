@@ -36,3 +36,10 @@ Get a glimpse of Kafka topic and consumer status
   then
 
     kotop -f kotop.conf -topic mytopic -group my_consumer_group
+
+
+## Maybe helpful in the following scenarios
+
+- Check whether the topic data is skewed
+- Check whether the distribution of partition leaders is uniform across the brokers
+- Check comsumer speed and size increment speed of each partition
