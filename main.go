@@ -13,26 +13,27 @@ import (
 )
 
 var (
-	confFile      = flag.String("f", "~/.kotop.conf", "config file name")
+	confFile      = flag.String("f", "", "config file name")
 	consumerGroup = flag.String("group", "", "consumer group name")
 	topic         = flag.String("topic", "", "topic name")
 	brokerHosts   = flag.String("broker", "", fmt.Sprintf("broker list, split by '%s' e.g: \"192.168.0.1:9092,192.168.0.2:9092,192.168.0.3:9092\"", kotop.BrokerListSpliter))
 	zkHosts       = flag.String("zk", "", fmt.Sprintf("zookeeper hosts and root, e.g: \"192.168.0.1:2181,192.168.0.2:2181/kafka_root_dir\""))
-	dataRefresh   = flag.Int("refresh", 2, "time to refresh data, default is 1s ")
+	dataRefresh   = flag.Int("refresh", 2, "time to refresh data, default is 2s ")
 )
 
 func main() {
 	flag.Parse()
-
-	raw, err := ioutil.ReadFile(*confFile)
-	if err != nil {
-		panic(err)
-	}
-
 	var conf kotop.KOTopConf
-	err = json.Unmarshal(raw, &conf)
-	if err != nil {
-		panic(err)
+
+	if len(*confFile) > 0 {
+		raw, err := ioutil.ReadFile(*confFile)
+		if err != nil {
+			panic(err)
+		}
+		err = json.Unmarshal(raw, &conf)
+		if err != nil {
+			panic(err)
+		}
 	}
 
 	if len(*brokerHosts) > 0 {
@@ -42,7 +43,7 @@ func main() {
 		conf.ZKHosts = *zkHosts
 	}
 
-	err = ui.Init()
+	err := ui.Init()
 	if err != nil {
 		panic(err)
 	}

@@ -9,10 +9,88 @@
 			"revisionTime": "2017-06-30T17:40:37Z"
 		},
 		{
+			"checksumSHA1": "mrz/kicZiUaHxkyfvC/DyQcr8Do=",
+			"path": "github.com/davecgh/go-spew/spew",
+			"revision": "ecdeabc65495df2dec95d7c4a4c3e021903035e5",
+			"revisionTime": "2017-10-02T20:02:53Z"
+		},
+		{
+			"checksumSHA1": "y2Kh4iPlgCPXSGTCcFpzePYdzzg=",
+			"path": "github.com/eapache/go-resiliency/breaker",
+			"revision": "b1fe83b5b03f624450823b751b662259ffc6af70",
+			"revisionTime": "2017-06-07T16:36:15Z"
+		},
+		{
+			"checksumSHA1": "WHl96RVZlOOdF4Lb1OOadMpw8ls=",
+			"path": "github.com/eapache/go-xerial-snappy",
+			"revision": "bb955e01b9346ac19dc29eb16586c90ded99a98c",
+			"revisionTime": "2016-06-09T14:24:08Z"
+		},
+		{
+			"checksumSHA1": "oCCs6kDanizatplM5e/hX76busE=",
+			"path": "github.com/eapache/queue",
+			"revision": "44cc805cf13205b55f69e14bcb69867d1ae92f98",
+			"revisionTime": "2016-08-05T00:47:13Z"
+		},
+		{
 			"checksumSHA1": "Bjl8V249BSzIN/LuyybVPRsvsHE=",
 			"path": "github.com/gizak/termui",
 			"revision": "72304ddb9b4e9838426a021aad64a5a860e98324",
 			"revisionTime": "2017-05-02T14:12:00Z"
+		},
+		{
+			"checksumSHA1": "p/8vSviYF91gFflhrt5vkyksroo=",
+			"path": "github.com/golang/snappy",
+			"revision": "553a641470496b2327abcac10b36396bd98e45c9",
+			"revisionTime": "2017-02-15T23:32:05Z"
+		},
+		{
+			"checksumSHA1": "l4kt8t9hNjXIg/72at33jc3zxKw=",
+			"path": "github.com/maruel/panicparse/stack",
+			"revision": "c0182c169410cfa80c7e8f046dad208eaef91338",
+			"revisionTime": "2017-12-09T02:50:17Z"
+		},
+		{
+			"checksumSHA1": "cJE7dphDlam/i7PhnsyosNWtbd4=",
+			"path": "github.com/mattn/go-runewidth",
+			"revision": "97311d9f7767e3d6f422ea06661bc2c7a19e8a5d",
+			"revisionTime": "2017-05-10T07:48:58Z"
+		},
+		{
+			"checksumSHA1": "L3leymg2RT8hFl5uL+5KP/LpBkg=",
+			"path": "github.com/mitchellh/go-wordwrap",
+			"revision": "ad45545899c7b13c020ea92b2072220eefad42b8",
+			"revisionTime": "2015-03-14T17:03:34Z"
+		},
+		{
+			"checksumSHA1": "5Jd0+a1X5Nvhhw8VfSUD9i1WyP0=",
+			"path": "github.com/nsf/termbox-go",
+			"revision": "aa4a75b1c20a2b03751b1a9f7e41d58bd6f71c43",
+			"revisionTime": "2017-11-04T16:23:16Z"
+		},
+		{
+			"checksumSHA1": "xKzx54LbkghuMauevGWevn5ip3w=",
+			"path": "github.com/pierrec/lz4",
+			"revision": "2fcda4cb7018ce05a25959d2fe08c83e3329f169",
+			"revisionTime": "2017-12-18T19:50:38Z"
+		},
+		{
+			"checksumSHA1": "zPWRjzsPeXCoqmidIcJtHbvrvRs=",
+			"path": "github.com/pierrec/xxHash/xxHash32",
+			"revision": "a0006b13c722f7f12368c00a3d3c2ae8a999a0c6",
+			"revisionTime": "2017-07-14T08:24:55Z"
+		},
+		{
+			"checksumSHA1": "6u6M+ydTkWgOlM+UK+wOYnHhpAU=",
+			"path": "github.com/rcrowley/go-metrics",
+			"revision": "e181e095bae94582363434144c61a9653aff6e50",
+			"revisionTime": "2017-11-28T17:04:26Z"
+		},
+		{
+			"checksumSHA1": "y33yd1uDZmV3VY4K/5FCGTeRtB8=",
+			"path": "github.com/samuel/go-zookeeper/zk",
+			"revision": "471cd4e61d7a78ece1791fa5faa0345dc8c7d5a5",
+			"revisionTime": "2017-11-17T18:40:27Z"
 		},
 		{
 			"checksumSHA1": "lv7iPv2KjwztbtvBm60Xfwuwj/A=",

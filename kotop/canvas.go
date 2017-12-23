@@ -46,9 +46,9 @@ type Canvas struct {
 	leaderDistribute           *ui.BarChart
 	consumeSpeed               *ui.Sparklines
 	produceSpeed               *ui.Sparklines
-	totalProduce, totalConsume *Ring
+	totalProduce, totalConsume *ring
 	page                       int
-	data                       []ResultEntry
+	data                       []resultEntry
 	header, footer             *ui.Row
 }
 
@@ -98,7 +98,7 @@ func (c *Canvas) refresh() {
 	return
 }
 
-func (c *Canvas) fillData(data []ResultEntry, pagesize int) {
+func (c *Canvas) fillData(data []resultEntry, pagesize int) {
 
 	w := ui.TermWidth()
 	c.leaderDistribute.BarWidth = (w / canvasWidth * barchartWidth / len(c.leaderDistribute.Data)) - 1
@@ -136,7 +136,7 @@ func (c *Canvas) fillData(data []ResultEntry, pagesize int) {
 	c.consumeSpeed.Lines[0].Title = rateStr(totalConsume)
 }
 
-func (c *Canvas) LoadData(data CanvasData) {
+func (c *Canvas) LoadData(data canvasData) {
 
 	leaders := make(map[int32]int, len(data.Brokers))
 	for _, d := range data.Data {
@@ -207,7 +207,7 @@ func (c *Canvas) Render() {
 	c.sort()
 	c.refresh()
 
-	ui.Body.Rows = ui.Body.Rows[:0]
+	ui.Body.Rows = nil
 	ui.Body.AddRows(
 		ui.NewRow(
 			ui.NewCol(barchartWidth, 0, c.leaderDistribute),
@@ -233,7 +233,7 @@ func (c *Canvas) Render() {
 // ----- init widgets func
 
 func newFooter() *ui.Row {
-	p := ui.NewPar("[q] quit, [up] page up, [down] page down, [1] sort by pid, [2] sort by size, [3] sort by offset, [4] sort by produce speed, [5] sort by consume speed, [6] sort by leader")
+	p := ui.NewPar("[q] quit, [up] page up, [down] page down, [1] sort by pid, [2] sort by size, [3] sort by offset, [4] sort by size increment speed, [5] sort by consume speed, [6] sort by leader")
 	p.TextFgColor = ui.ColorWhite
 	p.TextBgColor = ui.ColorCyan
 	p.Bg = ui.ColorCyan
@@ -260,7 +260,7 @@ func newSparkLines(label string) *ui.Sparklines {
 }
 
 func newHeader() *ui.Row {
-	headerText := []string{"pid", "size", "offset", "produce speed", "consume speed", "leader", "replicas", "isr"}
+	headerText := []string{"pid", "size", "offset", "size increment speed", "consume speed", "leader", "replicas", "isr"}
 	header := make([]*ui.Par, len(headerText))
 	for i := range header {
 		p := ui.NewPar(headerText[i])

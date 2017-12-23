@@ -24,10 +24,10 @@ type KOTop struct {
 	offsetReq  *sarama.OffsetFetchRequest
 	cli        sarama.Client
 	broker     *sarama.Broker
-	pm         map[int32]PartitionMeta
+	pm         map[int32]partitionMeta
 	ps         []int32
 	cg         *kazoo.Consumergroup
-	lastResult map[int32]PartitionInfo
+	lastResult map[int32]partitionInfo
 	lastCheck  time.Time
 }
 
@@ -45,49 +45,49 @@ func NewKOTop(conf *KOTopConf, topic, cg string) (k *KOTop, err error) {
 	k = &KOTop{
 		cli:   c,
 		group: cg,
-		pm:    make(map[int32]PartitionMeta),
+		pm:    make(map[int32]partitionMeta),
 		cg:    zk.Consumergroup(cg),
 	}
 	err = k.refreshMeta(topic)
 	return
 }
 
-type PartitionMeta struct {
+type partitionMeta struct {
 	Pid      int32
 	Leader   int32
 	Replicas []int32
 	Isr      []int32
 }
 
-type PartitionInfo struct {
-	PartitionMeta
+type partitionInfo struct {
+	partitionMeta
 	Offset int64
 	Size   int64
 	//highwatermark int64
 }
 
-type ResultEntry struct {
-	PartitionInfo
+type resultEntry struct {
+	partitionInfo
 	ConsumeRate    float64
 	ProduceRate    float64
 	ProducePercent int
 	ConsumePercent int
 }
 
-type CanvasData struct {
+type canvasData struct {
 	Brokers []int32
-	Data    []ResultEntry
+	Data    []resultEntry
 }
 
-func diffPartionInfo(old, new PartitionInfo, dur time.Duration) ResultEntry {
-	return ResultEntry{
-		PartitionInfo: new,
+func diffPartionInfo(old, new partitionInfo, dur time.Duration) resultEntry {
+	return resultEntry{
+		partitionInfo: new,
 		ConsumeRate:   float64(new.Offset-old.Offset) / dur.Seconds(), //TODO if offset = -1, sec -> ms
 		ProduceRate:   float64(new.Size-old.Size) / dur.Seconds(),
 	}
 }
 
-func diffPartionInfos(old, new map[int32]PartitionInfo, dur time.Duration) (res []ResultEntry) {
+func diffPartionInfos(old, new map[int32]partitionInfo, dur time.Duration) (res []resultEntry) {
 	pmax, cmax := math.SmallestNonzeroFloat64, math.SmallestNonzeroFloat64
 	pmin, cmin := math.MaxFloat64, math.MaxFloat64
 
@@ -123,7 +123,7 @@ func diffPartionInfos(old, new map[int32]PartitionInfo, dur time.Duration) (res 
 	return
 }
 
-func (k *KOTop) Brokers() []int32 {
+func (k *KOTop) brokers() []int32 {
 	brokers := make([]int32, 0, 20)
 	for _, b := range k.cli.Brokers() {
 		brokers = append(brokers, b.ID())
@@ -136,9 +136,9 @@ func (k *KOTop) Brokers() []int32 {
 	return brokers
 }
 
-func (k *KOTop) Check(topic string) (data CanvasData, err error) {
-	data.Brokers = k.Brokers()
-	logsizes, err := k.LogSize(topic)
+func (k *KOTop) Check(topic string) (data canvasData, err error) {
+	data.Brokers = k.brokers()
+	logsizes, err := k.logSize(topic)
 	if err != nil {
 		return
 	}
@@ -161,8 +161,8 @@ func (k *KOTop) Check(topic string) (data CanvasData, err error) {
 		data.Data = diffPartionInfos(k.lastResult, current, now.Sub(k.lastCheck))
 	} else {
 		for _, info := range current {
-			data.Data = append(data.Data, ResultEntry{
-				PartitionInfo: info,
+			data.Data = append(data.Data, resultEntry{
+				partitionInfo: info,
 			})
 		}
 	}
@@ -172,8 +172,8 @@ func (k *KOTop) Check(topic string) (data CanvasData, err error) {
 	return
 }
 
-func (k *KOTop) marshalResult(sizes, offs map[int32]int64) (results map[int32]PartitionInfo) {
-	results = make(map[int32]PartitionInfo, len(k.ps))
+func (k *KOTop) marshalResult(sizes, offs map[int32]int64) (results map[int32]partitionInfo) {
+	results = make(map[int32]partitionInfo, len(k.ps))
 	for _, pid := range k.ps {
 		off, ok := offs[pid]
 		if !ok {
@@ -184,8 +184,8 @@ func (k *KOTop) marshalResult(sizes, offs map[int32]int64) (results map[int32]Pa
 		if !ok {
 			s = -1
 		}
-		results[pid] = PartitionInfo{
-			PartitionMeta: k.pm[pid],
+		results[pid] = partitionInfo{
+			partitionMeta: k.pm[pid],
 			Offset:        off,
 			Size:          s,
 		}
@@ -193,7 +193,7 @@ func (k *KOTop) marshalResult(sizes, offs map[int32]int64) (results map[int32]Pa
 	return
 }
 
-func (k *KOTop) LogSize(topic string) (offsets map[int32]int64, err error) {
+func (k *KOTop) logSize(topic string) (offsets map[int32]int64, err error) {
 	offsets = make(map[int32]int64, len(k.ps))
 	var (
 		mux sync.Mutex
@@ -298,7 +298,7 @@ func (k *KOTop) refreshPartitionMeta(topic string) (err error) {
 			err = er
 			return
 		}
-		k.pm[pid] = PartitionMeta{
+		k.pm[pid] = partitionMeta{
 			Pid:      pid,
 			Replicas: replicas,
 			Isr:      isr,

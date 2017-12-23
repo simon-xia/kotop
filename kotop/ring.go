@@ -1,19 +1,19 @@
 package kotop
 
-type Ring struct {
+type ring struct {
 	idx  int
 	buf  []int
 	size int
 }
 
-func newRing(size int) *Ring {
-	return &Ring{
+func newRing(size int) *ring {
+	return &ring{
 		buf:  make([]int, size),
 		size: size,
 	}
 }
 
-func (r *Ring) add(a int) {
+func (r *ring) add(a int) {
 	r.buf[r.idx] = a
 	r.idx++
 	if r.idx >= r.size {
@@ -22,7 +22,7 @@ func (r *Ring) add(a int) {
 }
 
 // dump most recent n added
-func (r *Ring) dump(n int) []int {
+func (r *ring) dump(n int) []int {
 	if n > r.size {
 		n = r.size
 	}
