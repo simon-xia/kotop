@@ -1,6 +1,7 @@
 package kotop
 
 import (
+	"bytes"
 	"fmt"
 	"sort"
 	"strconv"
@@ -19,7 +20,7 @@ const (
 
 	barchartWidth   = 10
 	sparklinesWidth = 2
-	gaugeWidth      = 3
+	gaugeWidth      = 2
 	oneColumnWidth  = 1
 	canvasWidth     = 12
 
@@ -32,24 +33,26 @@ const (
 	FieldNamePid          FieldName = "pid"
 	FieldNameOffset       FieldName = "offset"
 	FieldNameSize         FieldName = "size"
+	FieldNameOffsetLag    FieldName = "oslag"
+	FieldNameHighWaterLag FieldName = "hwlag"
 	FieldNameProduceSpeed FieldName = "produce_speed"
 	FieldNameConsumeSpeed FieldName = "consume_speed"
 	FieldNameLeader       FieldName = "leader"
 )
 
 type Canvas struct {
-	sortby                     FieldName
-	produceRate                []*ui.Gauge
-	consumeRate                []*ui.Gauge
-	pid, offset, size          []*ui.Par
-	leader, replicas, isr      []*ui.Par
-	leaderDistribute           *ui.BarChart
-	consumeSpeed               *ui.Sparklines
-	produceSpeed               *ui.Sparklines
-	totalProduce, totalConsume *ring
-	page                       int
-	data                       []resultEntry
-	header, footer             *ui.Row
+	sortby                          FieldName
+	produceRate                     []*ui.Gauge
+	consumeRate                     []*ui.Gauge
+	pid, offset, size, hwlag, oslag []*ui.Par
+	leader, replicas, isr           []*ui.Par
+	leaderDistribute                *ui.BarChart
+	consumeSpeed                    *ui.Sparklines
+	produceSpeed                    *ui.Sparklines
+	totalProduce, totalConsume      *ring
+	page                            int
+	data                            []resultEntry
+	header, footer                  *ui.Row
 }
 
 func NewCanvas() *Canvas {
@@ -106,6 +109,8 @@ func (c *Canvas) fillData(data []resultEntry, pagesize int) {
 	c.pid = newParList(pagesize)
 	c.offset = newParList(pagesize)
 	c.size = newParList(pagesize)
+	c.hwlag = newParList(pagesize)
+	c.oslag = newParList(pagesize)
 	c.leader = newParList(pagesize)
 	c.replicas = newParList(pagesize)
 	c.isr = newParList(pagesize)
@@ -117,6 +122,8 @@ func (c *Canvas) fillData(data []resultEntry, pagesize int) {
 		c.pid[i].Text = strconv.Itoa(int(r.Pid))
 		c.offset[i].Text = strconv.FormatInt(r.Offset, 10)
 		c.size[i].Text = strconv.FormatInt(r.Size, 10)
+		c.oslag[i].Text = strconv.FormatInt(r.Size-r.Offset, 10)
+		c.hwlag[i].Text = strconv.FormatInt(r.Size-r.HighWatermark, 10)
 		c.leader[i].Text = strconv.Itoa(int(r.Leader))
 		c.replicas[i].Text = formatIntSlice(r.Replicas)
 		c.isr[i].Text = formatIntSlice(r.Isr)
@@ -172,6 +179,14 @@ func (c *Canvas) sort() {
 		sort.Slice(c.data, func(i, j int) bool {
 			return c.data[i].Size < c.data[j].Size
 		})
+	case FieldNameOffsetLag:
+		sort.Slice(c.data, func(i, j int) bool {
+			return (c.data[i].Size - c.data[i].Offset) < (c.data[j].Size - c.data[j].Offset)
+		})
+	case FieldNameHighWaterLag:
+		sort.Slice(c.data, func(i, j int) bool {
+			return (c.data[i].Size - c.data[i].HighWatermark) < (c.data[j].Size - c.data[j].HighWatermark)
+		})
 	case FieldNameProduceSpeed:
 		sort.Slice(c.data, func(i, j int) bool {
 			return c.data[i].ProduceRate < c.data[j].ProduceRate
@@ -217,7 +232,9 @@ func (c *Canvas) Render() {
 		ui.NewRow(
 			ui.NewCol(oneColumnWidth, 0, par2GridBufferSlice(c.pid)...),
 			ui.NewCol(oneColumnWidth, 0, par2GridBufferSlice(c.size)...),
+			ui.NewCol(oneColumnWidth, 0, par2GridBufferSlice(c.hwlag)...),
 			ui.NewCol(oneColumnWidth, 0, par2GridBufferSlice(c.offset)...),
+			ui.NewCol(oneColumnWidth, 0, par2GridBufferSlice(c.oslag)...),
 			ui.NewCol(gaugeWidth, 0, gauge2GridBufferSlice(c.produceRate)...),
 			ui.NewCol(gaugeWidth, 0, gauge2GridBufferSlice(c.consumeRate)...),
 			ui.NewCol(oneColumnWidth, 0, par2GridBufferSlice(c.leader)...),
@@ -232,8 +249,21 @@ func (c *Canvas) Render() {
 
 // ----- init widgets func
 
+var headerText = []string{"pid", "size", "high watermark lag", "offset", "offset lag", "size increment speed", "consume speed", "leader", "replicas", "isr"}
+
+func footerText() string {
+	buf := bytes.NewBufferString("[q] quit, [up] page up, [down] page down, sort by ")
+	for i, h := range headerText {
+		if i == 8 {
+			break
+		}
+		buf.WriteString(fmt.Sprintf("[%d] %s ", i+1, h))
+	}
+	return buf.String()
+}
+
 func newFooter() *ui.Row {
-	p := ui.NewPar("[q] quit, [up] page up, [down] page down, [1] sort by pid, [2] sort by size, [3] sort by offset, [4] sort by size increment speed, [5] sort by consume speed, [6] sort by leader")
+	p := ui.NewPar(footerText())
 	p.TextFgColor = ui.ColorWhite
 	p.TextBgColor = ui.ColorCyan
 	p.Bg = ui.ColorCyan
@@ -260,7 +290,6 @@ func newSparkLines(label string) *ui.Sparklines {
 }
 
 func newHeader() *ui.Row {
-	headerText := []string{"pid", "size", "offset", "size increment speed", "consume speed", "leader", "replicas", "isr"}
 	header := make([]*ui.Par, len(headerText))
 	for i := range header {
 		p := ui.NewPar(headerText[i])
@@ -280,11 +309,13 @@ func newHeader() *ui.Row {
 		ui.NewCol(oneColumnWidth, 0, header[0]),
 		ui.NewCol(oneColumnWidth, 0, header[1]),
 		ui.NewCol(oneColumnWidth, 0, header[2]),
-		ui.NewCol(gaugeWidth, 0, header[3]),
-		ui.NewCol(gaugeWidth, 0, header[4]),
-		ui.NewCol(oneColumnWidth, 0, header[5]),
-		ui.NewCol(oneColumnWidth, 0, header[6]),
+		ui.NewCol(oneColumnWidth, 0, header[3]),
+		ui.NewCol(oneColumnWidth, 0, header[4]),
+		ui.NewCol(gaugeWidth, 0, header[5]),
+		ui.NewCol(gaugeWidth, 0, header[6]),
 		ui.NewCol(oneColumnWidth, 0, header[7]),
+		ui.NewCol(oneColumnWidth, 0, header[8]),
+		ui.NewCol(oneColumnWidth, 0, header[9]),
 	)
 }
 

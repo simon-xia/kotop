@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"sync"
 	"time"
 
@@ -23,6 +24,7 @@ var (
 
 func main() {
 	flag.Parse()
+	log.SetOutput(ioutil.Discard)
 	var conf kotop.KOTopConf
 
 	if len(*confFile) > 0 {
@@ -88,33 +90,47 @@ func main() {
 	})
 	ui.Handle("/sys/kbd/2", func(ui.Event) {
 		mutex.Lock()
-		canvas.SetSort(kotop.FieldNameOffset)
+		canvas.SetSort(kotop.FieldNameSize)
 		ui.Clear()
 		canvas.Render()
 		mutex.Unlock()
 	})
 	ui.Handle("/sys/kbd/3", func(ui.Event) {
 		mutex.Lock()
-		canvas.SetSort(kotop.FieldNameSize)
+		canvas.SetSort(kotop.FieldNameHighWaterLag)
 		ui.Clear()
 		canvas.Render()
 		mutex.Unlock()
 	})
 	ui.Handle("/sys/kbd/4", func(ui.Event) {
 		mutex.Lock()
-		canvas.SetSort(kotop.FieldNameProduceSpeed)
+		canvas.SetSort(kotop.FieldNameOffset)
 		ui.Clear()
 		canvas.Render()
 		mutex.Unlock()
 	})
 	ui.Handle("/sys/kbd/5", func(ui.Event) {
 		mutex.Lock()
-		canvas.SetSort(kotop.FieldNameConsumeSpeed)
+		canvas.SetSort(kotop.FieldNameOffsetLag)
 		ui.Clear()
 		canvas.Render()
 		mutex.Unlock()
 	})
 	ui.Handle("/sys/kbd/6", func(ui.Event) {
+		mutex.Lock()
+		canvas.SetSort(kotop.FieldNameProduceSpeed)
+		ui.Clear()
+		canvas.Render()
+		mutex.Unlock()
+	})
+	ui.Handle("/sys/kbd/7", func(ui.Event) {
+		mutex.Lock()
+		canvas.SetSort(kotop.FieldNameConsumeSpeed)
+		ui.Clear()
+		canvas.Render()
+		mutex.Unlock()
+	})
+	ui.Handle("/sys/kbd/8", func(ui.Event) {
 		mutex.Lock()
 		canvas.SetSort(kotop.FieldNameLeader)
 		ui.Clear()

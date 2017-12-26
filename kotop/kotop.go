@@ -23,6 +23,7 @@ type KOTop struct {
 	group      string
 	offsetReq  *sarama.OffsetFetchRequest
 	cli        sarama.Client
+	consumer   sarama.Consumer
 	broker     *sarama.Broker
 	pm         map[int32]partitionMeta
 	ps         []int32
@@ -32,9 +33,25 @@ type KOTop struct {
 }
 
 func NewKOTop(conf *KOTopConf, topic, cg string) (k *KOTop, err error) {
-	c, err := sarama.NewClient(strings.Split(conf.Brokers, BrokerListSpliter), nil)
+	client, err := sarama.NewClient(strings.Split(conf.Brokers, BrokerListSpliter), nil)
 	if err != nil {
 		return
+	}
+
+	consumer, err := sarama.NewConsumerFromClient(client)
+	if err != nil {
+		return
+	}
+
+	pids, err := consumer.Partitions(topic)
+	if err != nil {
+		return
+	}
+	for _, id := range pids {
+		_, err = consumer.ConsumePartition(topic, id, sarama.OffsetNewest)
+		if err != nil {
+			return
+		}
 	}
 
 	zk, err := kazoo.NewKazooFromConnectionString(conf.ZKHosts, kazoo.NewConfig())
@@ -43,10 +60,11 @@ func NewKOTop(conf *KOTopConf, topic, cg string) (k *KOTop, err error) {
 	}
 
 	k = &KOTop{
-		cli:   c,
-		group: cg,
-		pm:    make(map[int32]partitionMeta),
-		cg:    zk.Consumergroup(cg),
+		cli:      client,
+		group:    cg,
+		pm:       make(map[int32]partitionMeta),
+		cg:       zk.Consumergroup(cg),
+		consumer: consumer,
 	}
 	err = k.refreshMeta(topic)
 	return
@@ -61,9 +79,9 @@ type partitionMeta struct {
 
 type partitionInfo struct {
 	partitionMeta
-	Offset int64
-	Size   int64
-	//highwatermark int64
+	Offset        int64
+	Size          int64
+	HighWatermark int64
 }
 
 type resultEntry struct {
@@ -155,8 +173,10 @@ func (k *KOTop) Check(topic string) (data canvasData, err error) {
 		}
 	}
 
+	hws := k.highWaterMarks(topic)
+
 	now := time.Now()
-	current := k.marshalResult(logsizes, offsets)
+	current := k.marshalResult(logsizes, offsets, hws)
 	if k.lastResult != nil {
 		data.Data = diffPartionInfos(k.lastResult, current, now.Sub(k.lastCheck))
 	} else {
@@ -172,7 +192,7 @@ func (k *KOTop) Check(topic string) (data canvasData, err error) {
 	return
 }
 
-func (k *KOTop) marshalResult(sizes, offs map[int32]int64) (results map[int32]partitionInfo) {
+func (k *KOTop) marshalResult(sizes, offs, hws map[int32]int64) (results map[int32]partitionInfo) {
 	results = make(map[int32]partitionInfo, len(k.ps))
 	for _, pid := range k.ps {
 		off, ok := offs[pid]
@@ -184,10 +204,16 @@ func (k *KOTop) marshalResult(sizes, offs map[int32]int64) (results map[int32]pa
 		if !ok {
 			s = -1
 		}
+
+		hw, ok := hws[pid]
+		if !ok {
+			hw = -1
+		}
 		results[pid] = partitionInfo{
 			partitionMeta: k.pm[pid],
 			Offset:        off,
 			Size:          s,
+			HighWatermark: hw,
 		}
 	}
 	return
@@ -214,6 +240,12 @@ func (k *KOTop) logSize(topic string) (offsets map[int32]int64, err error) {
 		}(pid)
 	}
 	wg.Wait()
+	return
+}
+
+func (k *KOTop) highWaterMarks(topic string) (hw map[int32]int64) {
+	hws := k.consumer.HighWaterMarks()
+	hw = hws[topic]
 	return
 }
 

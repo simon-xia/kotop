@@ -43,3 +43,4 @@ Get a glimpse of Kafka topic and consumer status
 - Check whether the topic data is skewed
 - Check whether the distribution of partition leaders is uniform across the brokers
 - Check comsumer speed and size increment speed of each partition
+- Check high watermark lag and offset lag of each partition
