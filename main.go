@@ -2,13 +2,17 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"io/ioutil"
 	"log"
+	"os"
+	"strings"
 	"sync"
 	"time"
 
+	"github.com/Shopify/sarama"
 	ui "github.com/gizak/termui"
 	"github.com/simon-xia/kotop/kotop"
 )
@@ -17,15 +21,19 @@ var (
 	confFile      = flag.String("f", "", "config file name")
 	consumerGroup = flag.String("group", "", "consumer group name")
 	topic         = flag.String("topic", "", "topic name")
+	version       = flag.String("version", "", fmt.Sprintf("kafka version, supported values (%s)", printAllSupportedVersions()))
+	verbose       = flag.Bool("v", false, "verbose info")
 	brokerHosts   = flag.String("broker", "", fmt.Sprintf("broker list, split by '%s' e.g: \"192.168.0.1:9092,192.168.0.2:9092,192.168.0.3:9092\"", kotop.BrokerListSpliter))
 	zkHosts       = flag.String("zk", "", fmt.Sprintf("zookeeper hosts and root, e.g: \"192.168.0.1:2181,192.168.0.2:2181/kafka_root_dir\""))
 	dataRefresh   = flag.Int("refresh", 2, "time to refresh data, default is 2s ")
+
+	errInvalidKafkaVersion = errors.New("invalid kafka version")
 )
 
 func main() {
 	flag.Parse()
-	log.SetOutput(ioutil.Discard)
 	var conf kotop.KOTopConf
+	v := sarama.MinVersion
 
 	if len(*confFile) > 0 {
 		raw, err := ioutil.ReadFile(*confFile)
@@ -36,6 +44,15 @@ func main() {
 		if err != nil {
 			panic(err)
 		}
+		conf.Verbose = *verbose
+		if len(conf.KafkaVersion) > 0 {
+			kv, ok := supportedVersions[conf.KafkaVersion]
+			if !ok {
+				flag.Usage()
+				panic(errInvalidKafkaVersion)
+			}
+			v = kv
+		}
 	}
 
 	if len(*brokerHosts) > 0 {
@@ -44,14 +61,22 @@ func main() {
 	if len(*zkHosts) > 0 {
 		conf.ZKHosts = *zkHosts
 	}
-
-	err := ui.Init()
-	if err != nil {
-		panic(err)
+	if len(*version) > 0 {
+		kv, ok := supportedVersions[*version]
+		if !ok {
+			flag.Usage()
+			panic(errInvalidKafkaVersion)
+		}
+		v = kv
 	}
-	defer ui.Close()
+	if *verbose {
+		sarama.Logger = log.New(os.Stderr, "[Sarama] ", log.LstdFlags)
+	} else {
+		// discard log when verbose print is off
+		log.SetOutput(ioutil.Discard)
+	}
 
-	top, err := kotop.NewKOTop(&conf, *topic, *consumerGroup)
+	top, err := kotop.NewKOTop(&conf, *topic, *consumerGroup, v)
 	if err != nil {
 		panic(err)
 	}
@@ -60,6 +85,12 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
+
+	err = ui.Init()
+	if err != nil {
+		panic(err)
+	}
+	defer ui.Close()
 
 	var mutex sync.Mutex
 	canvas := kotop.NewCanvas()
@@ -172,4 +203,31 @@ func main() {
 	}()
 
 	ui.Loop()
+}
+
+func printAllSupportedVersions() string {
+	vs := make([]string, 0, len(supportedVersions))
+	for v := range supportedVersions {
+		vs = append(vs, v)
+	}
+	return strings.Join(vs, ", ")
+}
+
+var supportedVersions = map[string]sarama.KafkaVersion{
+	"0.8.2.0":  sarama.V0_8_2_0,
+	"0.8.2.1":  sarama.V0_8_2_1,
+	"0.8.2.2":  sarama.V0_8_2_2,
+	"0.9.0.0":  sarama.V0_9_0_0,
+	"0.9.0.1":  sarama.V0_9_0_1,
+	"0.10.0.0": sarama.V0_10_0_0,
+	"0.10.0.1": sarama.V0_10_0_1,
+	"0.10.1.0": sarama.V0_10_1_0,
+	"0.10.1.1": sarama.V0_10_1_1,
+	"0.10.2.0": sarama.V0_10_2_0,
+	"0.10.2.1": sarama.V0_10_2_1,
+	"0.11.0.0": sarama.V0_11_0_0,
+	"0.11.0.1": sarama.V0_11_0_1,
+	"0.11.0.2": sarama.V0_11_0_2,
+	"1.0.0.0":  sarama.V1_0_0_0,
+	"1.1.0.0":  sarama.V1_1_0_0,
 }

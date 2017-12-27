@@ -1,21 +1,25 @@
 package kotop
 
 import (
+	"log"
 	"math"
+	"runtime"
 	"sort"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/Shopify/sarama"
-	"github.com/wvanbergen/kazoo-go"
+	kazoo "github.com/wvanbergen/kazoo-go"
 )
 
 const BrokerListSpliter = ","
 
 type KOTopConf struct {
-	Brokers string `json:"brokers"`
-	ZKHosts string `json:"zkhosts"`
+	Brokers      string `json:"brokers"`
+	ZKHosts      string `json:"zkhosts"`
+	KafkaVersion string `json:"kafka_version"`
+	Verbose      bool
 }
 
 type KOTop struct {
@@ -30,10 +34,17 @@ type KOTop struct {
 	cg         *kazoo.Consumergroup
 	lastResult map[int32]partitionInfo
 	lastCheck  time.Time
+	verbose    bool
 }
 
-func NewKOTop(conf *KOTopConf, topic, cg string) (k *KOTop, err error) {
-	client, err := sarama.NewClient(strings.Split(conf.Brokers, BrokerListSpliter), nil)
+func NewKOTop(conf *KOTopConf, topic, cg string, version sarama.KafkaVersion) (k *KOTop, err error) {
+	if conf.Verbose {
+		defer trace()()
+	}
+	cfg := sarama.NewConfig()
+	cfg.Metadata.Full = false // no need to refresh all topic meta
+	cfg.Version = version
+	client, err := sarama.NewClient(strings.Split(conf.Brokers, BrokerListSpliter), cfg)
 	if err != nil {
 		return
 	}
@@ -65,6 +76,7 @@ func NewKOTop(conf *KOTopConf, topic, cg string) (k *KOTop, err error) {
 		pm:       make(map[int32]partitionMeta),
 		cg:       zk.Consumergroup(cg),
 		consumer: consumer,
+		verbose:  conf.Verbose,
 	}
 	err = k.refreshMeta(topic)
 	return
@@ -155,6 +167,9 @@ func (k *KOTop) brokers() []int32 {
 }
 
 func (k *KOTop) Check(topic string) (data canvasData, err error) {
+	if k.verbose {
+		defer trace()()
+	}
 	data.Brokers = k.brokers()
 	logsizes, err := k.logSize(topic)
 	if err != nil {
@@ -266,6 +281,7 @@ func (k *KOTop) offsetFromKafka(topic string) (offsets map[int32]int64, get bool
 	if err != nil {
 		return
 	}
+
 	for _, pid := range k.ps {
 		block := resp.GetBlock(topic, pid)
 		if block == nil || block.Err != sarama.ErrNoError {
@@ -280,30 +296,40 @@ func (k *KOTop) offsetFromKafka(topic string) (offsets map[int32]int64, get bool
 }
 
 func (k *KOTop) refreshMeta(topic string) (err error) {
-	err = k.cli.RefreshMetadata()
-	if err != nil {
-		return
+	if k.verbose {
+		defer trace()()
 	}
-
-	err = k.cli.RefreshCoordinator(k.group)
+	err = k.cli.RefreshMetadata(topic)
 	if err != nil {
+		if k.verbose {
+			log.Printf("refresh meta data of %s failed: %+v\n", topic, err)
+		}
 		return
 	}
 
 	b, err := k.cli.Coordinator(k.group)
 	if err != nil {
+		if k.verbose {
+			log.Printf("refresh coordinator of %s failed: %+v\n", k.group, err)
+		}
 		return
 	}
 	k.broker = b
 
 	ps, err := k.cli.Partitions(topic)
 	if err != nil {
+		if k.verbose {
+			log.Printf("refresh partition data of %s failed: %+v\n", topic, err)
+		}
 		return
 	}
 	k.ps = ps
 
 	err = k.refreshPartitionMeta(topic)
 	if err != nil {
+		if k.verbose {
+			log.Printf("refresh partition meta data of %s failed: %+v\n", topic, err)
+		}
 		return
 	}
 
@@ -312,23 +338,42 @@ func (k *KOTop) refreshMeta(topic string) (err error) {
 }
 
 func (k *KOTop) refreshPartitionMeta(topic string) (err error) {
+	if k.verbose {
+		defer trace()()
+	}
 	for _, pid := range k.ps {
 		b, er := k.cli.Leader(topic, pid)
 		if er != nil {
+			if k.verbose {
+				log.Printf("refresh partition %d meta data of %s failed: %+v\n", pid, topic, er)
+			}
 			err = er
 			return
 		}
 
 		replicas, er := k.cli.Replicas(topic, pid)
 		if er != nil {
-			err = er
-			return
+			if k.verbose {
+				log.Printf("refresh partition %d replica data of %s failed: %+v\n", pid, topic, er)
+			}
+
+			// skip replica not available error
+			if er != sarama.ErrReplicaNotAvailable {
+				err = er
+				return
+			}
 		}
 
 		isr, er := k.cli.InSyncReplicas(topic, pid)
 		if er != nil {
-			err = er
-			return
+			if k.verbose {
+				log.Printf("refresh partition %d ISR of %s failed: %+v\n", pid, topic, er)
+			}
+			// skip replica not available error
+			if er != sarama.ErrReplicaNotAvailable {
+				err = er
+				return
+			}
 		}
 		k.pm[pid] = partitionMeta{
 			Pid:      pid,
@@ -352,4 +397,16 @@ func (k *KOTop) updateOffsetReq(topic string) (err error) {
 	}
 	k.offsetReq = req
 	return
+}
+
+func trace() func() {
+	pc, _, _, _ := runtime.Caller(1)
+	funcname := runtime.FuncForPC(pc).Name()
+	funcname = funcname[strings.LastIndex(funcname, ".")+1:]
+
+	startAt := time.Now()
+	log.Printf("[%s] -----> begin at %+v\n", funcname, startAt)
+	return func() {
+		log.Printf("[%s] <----- end takes %+v\n", funcname, time.Since(startAt))
+	}
 }
